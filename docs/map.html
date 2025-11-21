@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinics Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-size: 14px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1001;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="loading" class="loading">Loading data...</div>
+    <div id="info" class="info"></div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Map initialization
+        const map = L.map('map').setView([24.4539, 54.3773], 8); // UAE center
+        
+        // Adding map layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Function to process loaded data
+        function processData(clinics) {
+            // Hide loading indicator
+            document.getElementById('loading').style.display = 'none';
+            
+            // Show information about number of points
+            document.getElementById('info').textContent = `Loaded points: ${clinics.length}`;
+            
+            // Add markers to the map
+            const bounds = [];
+            
+            clinics.forEach(point => {
+                const marker = L.marker([point.lat, point.lon]).addTo(map);
+                
+                // Create content for popup tooltip
+                let popupContent = '';
+                if (point.name) {
+                    popupContent += `<strong>${point.name}</strong>`;
+                }
+                if (point.address) {
+                    popupContent += `<br>${point.address}`;
+                }
+                
+                marker.bindPopup(popupContent || 'Point without data');
+                bounds.push([point.lat, point.lon]);
+            });
+            
+            // Scale the map to show all points
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+        
+        // Load data from JSON file
+        async function loadClinics() {
+            try {
+                const response = await fetch('clinics.json');
+                if (!response.ok) {
+                    throw new Error('Error loading data');
+                }
+                const clinics = await response.json();
+                processData(clinics);
+            } catch (error) {
+                console.error('Error loading JSON:', error);
+                document.getElementById('loading').textContent = 'Error loading data';
+            }
+        }
+        
+        // Start loading when page loads
+        loadClinics();
+    </script>
+</body>
+</html>
