@@ -50,15 +50,111 @@
             z-index: 1001;
             font-size: 18px;
         }
+        
+        .filters {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-size: 14px;
+            max-width: 200px;
+        }
+        
+        .filters h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .filter-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        
+        .filter-item input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .filter-item label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        .filter-color {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            margin-right: 6px;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div id="loading" class="loading">Loading data...</div>
     <div id="info" class="info"></div>
+    <div id="filters" class="filters">
+        <h3>Filters</h3>
+        <div class="filter-item">
+            <input type="checkbox" id="filter-pharmacy" checked>
+            <label for="filter-pharmacy">
+                <span class="filter-color" style="background-color: #0066CC;"></span>
+                Pharmacy
+            </label>
+        </div>
+        <div class="filter-item">
+            <input type="checkbox" id="filter-optical" checked>
+            <label for="filter-optical">
+                <span class="filter-color" style="background-color: #00CCCC;"></span>
+                Optical
+            </label>
+        </div>
+        <div class="filter-item">
+            <input type="checkbox" id="filter-dental" checked>
+            <label for="filter-dental">
+                <span class="filter-color" style="background-color: #00CC66;"></span>
+                Dental
+            </label>
+        </div>
+        <div class="filter-item">
+            <input type="checkbox" id="filter-hospital" checked>
+            <label for="filter-hospital">
+                <span class="filter-color" style="background-color: #CC0000;"></span>
+                Hospital
+            </label>
+        </div>
+        <div class="filter-item">
+            <input type="checkbox" id="filter-clinic" checked>
+            <label for="filter-clinic">
+                <span class="filter-color" style="background-color: #FF6600;"></span>
+                Clinic
+            </label>
+        </div>
+        <div class="filter-item">
+            <input type="checkbox" id="filter-lab" checked>
+            <label for="filter-lab">
+                <span class="filter-color" style="background-color: #FFCC00;"></span>
+                Lab
+            </label>
+        </div>
+    </div>
     
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Clinics data -->
+    <script src="clinics.js"></script>
     
     <script>
         // Map initialization
@@ -70,30 +166,127 @@
             maxZoom: 19
         }).addTo(map);
         
+        // Color mapping for different clinic types
+        const tagColors = {
+            'pharmacy': '#0066CC',    // Blue
+            'optical': '#00CCCC',     // Purple
+            'dental': '#00CC66',      // Green
+            'hospital': '#CC0000',    // Red
+            'clinic': '#FF6600',      // Orange
+            'lab': '#FFCC00',         // Yellow
+            'multiple': '#9933CC',    // Teal for multiple tags
+            'none': '#666666'         // Gray for no tags
+        };
+        
+        // Store all markers with their tag information
+        let allMarkers = [];
+        
+        // Function to get icon color based on tags
+        function getIconColor(tags) {
+            if (!tags || tags.length === 0) {
+                return tagColors.none;
+            }
+            
+            if (tags.length > 1) {
+                return tagColors.multiple;
+            }
+            
+            const tag = tags[0];
+            return tagColors[tag] || tagColors.none;
+        }
+        
+        // Function to create a colored circle marker icon
+        function createColoredIcon(color) {
+            return L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            });
+        }
+        
+        // Function to update visible markers based on filters
+        function updateFilters() {
+            const filters = {
+                'pharmacy': document.getElementById('filter-pharmacy').checked,
+                'optical': document.getElementById('filter-optical').checked,
+                'dental': document.getElementById('filter-dental').checked,
+                'hospital': document.getElementById('filter-hospital').checked,
+                'clinic': document.getElementById('filter-clinic').checked,
+                'lab': document.getElementById('filter-lab').checked
+            };
+            
+            let visibleCount = 0;
+            
+            allMarkers.forEach(markerData => {
+                const tags = markerData.tags;
+                let isVisible = false;
+                
+                // If no tags, always show
+                if (!tags || tags.length === 0) {
+                    isVisible = true;
+                } else {
+                    // For multiple tags, show if at least one tag is enabled
+                    // For single tag, show if that tag is enabled
+                    isVisible = tags.some(tag => filters[tag] === true);
+                }
+                
+                if (isVisible) {
+                    if (!map.hasLayer(markerData.marker)) {
+                        markerData.marker.addTo(map);
+                    }
+                    visibleCount++;
+                } else {
+                    if (map.hasLayer(markerData.marker)) {
+                        map.removeLayer(markerData.marker);
+                    }
+                }
+            });
+            
+            // Update info with visible count
+            document.getElementById('info').textContent = `Visible: ${visibleCount} / ${allMarkers.length}`;
+        }
+        
         // Function to process loaded data
         function processData(clinics) {
             // Hide loading indicator
             document.getElementById('loading').style.display = 'none';
             
-            // Show information about number of points
-            document.getElementById('info').textContent = `Loaded points: ${clinics.length}`;
+            // Clear existing markers
+            allMarkers = [];
             
             // Add markers to the map
             const bounds = [];
             
             clinics.forEach(point => {
-                const marker = L.marker([point.lat, point.lon]).addTo(map);
+                // Get icon color based on tags
+                const iconColor = getIconColor(point.tags);
+                const icon = createColoredIcon(iconColor);
+                
+                const marker = L.marker([point.lat, point.lon], { icon: icon });
                 
                 // Create content for popup tooltip
                 let popupContent = '';
                 if (point.name) {
                     popupContent += `<strong>${point.name}</strong>`;
                 }
+                if (point.tags && point.tags.length > 0) {
+                    popupContent += `<br><small>Tags: ${point.tags.join(', ')}</small>`;
+                }
                 if (point.address) {
                     popupContent += `<br>${point.address}`;
                 }
                 
                 marker.bindPopup(popupContent || 'Point without data');
+                
+                // Store marker with tags information
+                allMarkers.push({
+                    marker: marker,
+                    tags: point.tags || []
+                });
+                
+                // Add marker to map initially (all filters are checked by default)
+                marker.addTo(map);
                 bounds.push([point.lat, point.lon]);
             });
             
@@ -101,25 +294,27 @@
             if (bounds.length > 0) {
                 map.fitBounds(bounds, { padding: [50, 50] });
             }
+            
+            // Update info
+            document.getElementById('info').textContent = `Visible: ${allMarkers.length} / ${allMarkers.length}`;
+            
+            // Add event listeners to filter checkboxes
+            document.getElementById('filter-pharmacy').addEventListener('change', updateFilters);
+            document.getElementById('filter-optical').addEventListener('change', updateFilters);
+            document.getElementById('filter-dental').addEventListener('change', updateFilters);
+            document.getElementById('filter-hospital').addEventListener('change', updateFilters);
+            document.getElementById('filter-clinic').addEventListener('change', updateFilters);
+            document.getElementById('filter-lab').addEventListener('change', updateFilters);
         }
         
-        // Load data from JSON file
-        async function loadClinics() {
-            try {
-                const response = await fetch('clinics.json');
-                if (!response.ok) {
-                    throw new Error('Error loading data');
-                }
-                const clinics = await response.json();
-                processData(clinics);
-            } catch (error) {
-                console.error('Error loading JSON:', error);
-                document.getElementById('loading').textContent = 'Error loading data';
+        // Process data when page loads (data is loaded via script tag)
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof data !== 'undefined') {
+                processData(data);
+            } else {
+                document.getElementById('loading').textContent = 'Error: data not loaded';
             }
-        }
-        
-        // Start loading when page loads
-        loadClinics();
+        });
     </script>
 </body>
 </html>
