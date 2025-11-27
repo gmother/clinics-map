@@ -67,18 +67,6 @@ def should_geocode(clinic):
     - locationiq exists and is an empty array (failed geocoding)
     - google doesn't exist (no previous attempt)
     """
-    # Must have locationiq as empty array (failed attempt)
-    if "locationiq" not in clinic:
-        return False
-    
-    locationiq = clinic["locationiq"]
-    if not isinstance(locationiq, list):
-        return False
-    
-    # locationiq must be empty (failed geocoding)
-    if len(locationiq) > 0:
-        return False
-    
     # google must not exist (no previous attempt)
     if "google" in clinic:
         return False

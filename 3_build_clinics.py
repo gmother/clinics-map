@@ -63,24 +63,24 @@ def extract_tags(name):
 
 
 def get_coordinates(record):
-    """Extract coordinates from locationiq or opencage, return (lat, lon) or None"""
-    # Try locationiq first
-    if 'locationiq' in record and record['locationiq']:
-        loc = record['locationiq']
-        if isinstance(loc, list) and len(loc) == 2:
-            return (loc[0], loc[1])
-
+    """Extract coordinates from google,locationiq or opencage, return (lat, lon) or None"""
     # Try google
     if 'google' in record and record['google']:
         loc = record['google']
         if isinstance(loc, list) and len(loc) == 2:
-            return (loc[0], loc[1])
+            return (round(loc[0], 6), round(loc[1], 6))
+
+    # Try locationiq
+    if 'locationiq' in record and record['locationiq']:
+        loc = record['locationiq']
+        if isinstance(loc, list) and len(loc) == 2:
+            return (round(loc[0], 6), round(loc[1], 6))
     
     # Try opencage
     if 'opencage' in record and record['opencage']:
         loc = record['opencage']
         if isinstance(loc, list) and len(loc) == 2:
-            return (loc[0], loc[1])
+            return (round(loc[0], 6), round(loc[1], 6))
     
     return None
 
